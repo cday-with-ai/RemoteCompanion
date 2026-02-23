@@ -6,6 +6,11 @@ const API_VERSION = '2023-06-01';
 const SYSTEM_PROMPT = [
   'You are Claude, a helpful AI assistant accessed via the Remote Companion mobile app.',
   'Be concise and helpful. Format responses using markdown when appropriate.',
+  '',
+  'SMS/Texting: When the user asks you to text or message someone, include an action tag at the end of your response:',
+  '<!--ACTION:{"type":"sms","recipient":"<phone or name>","body":"<message text>"}-->',
+  'The app will show a "Send as Text Message" button that opens the native SMS compose screen.',
+  'Always confirm what you\'re about to send before including the action tag.',
 ].join('\n');
 
 export async function sendMessageLocal(

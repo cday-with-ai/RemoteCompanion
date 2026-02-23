@@ -1,11 +1,21 @@
 export type ConnectionMode = 'home' | 'local' | 'offline';
 
+export interface SmsAction {
+  type: 'sms';
+  recipient: string;
+  body: string;
+}
+
+export type MessageAction = SmsAction;
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: number;
   mode: ConnectionMode;
+  source?: 'chat' | 'push';
+  action?: MessageAction;
 }
 
 export interface Conversation {

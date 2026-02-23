@@ -1,8 +1,11 @@
+import { createServer } from 'node:http';
 import express from 'express';
 import cors from 'cors';
 import { chatRouter } from './routes/chat.js';
 import { healthRouter } from './routes/health.js';
+import { pushRouter } from './routes/push.js';
 import { authMiddleware } from './auth/middleware.js';
+import { attachWebSocket } from './ws/handler.js';
 
 const PORT = parseInt(process.env['PORT'] ?? '3001', 10);
 const HOST = process.env['HOST'] ?? '0.0.0.0';
@@ -15,7 +18,11 @@ app.use('/health', healthRouter);
 
 app.use(authMiddleware);
 app.use('/chat', chatRouter);
+app.use('/push', pushRouter);
 
-app.listen(PORT, HOST, () => {
+const server = createServer(app);
+attachWebSocket(server);
+
+server.listen(PORT, HOST, () => {
   console.log(`ClaudeServer listening on ${HOST}:${PORT}`);
 });

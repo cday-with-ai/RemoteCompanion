@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   StyleSheet,
   FlatList,
@@ -18,19 +18,33 @@ import ConnectionBadge from './ConnectionBadge';
 import MessageBubble from './MessageBubble';
 import { useChat } from '../../hooks/useChat';
 import { useConnection } from '../../hooks/useConnection';
+import { usePushMessages } from '../../hooks/usePushMessages';
+import { useSpeech } from '../../hooks/useSpeech';
 import type { Message } from '../../types';
 
 export default function ChatView() {
   const { mode, isChecking, recheckConnection } = useConnection();
-  const { messages, isStreaming, error, sendMessage, clearChat } = useChat(mode);
+  const { messages, isStreaming, error, lastCompletedId, sendMessage, clearChat, addPushedMessage } = useChat(mode);
+  const { ttsEnabled, toggleTts, speakResponse } = useSpeech();
   const [input, setInput] = useState('');
   const flatListRef = useRef<FlatList<Message>>(null);
   const colorScheme = useColorScheme() ?? 'light';
   const isDark = colorScheme === 'dark';
   const insets = useSafeAreaInsets();
 
+  usePushMessages(mode, addPushedMessage);
+
+  // Auto-speak completed assistant responses when TTS is enabled
+  useEffect(() => {
+    if (!lastCompletedId || !ttsEnabled) return;
+    const msg = messages.find((m) => m.id === lastCompletedId);
+    if (msg?.role === 'assistant' && msg.content) {
+      speakResponse(msg.id, msg.content);
+    }
+  }, [lastCompletedId, messages, ttsEnabled, speakResponse]);
+
   const handleSend = () => {
-    if (!input.trim() || isStreaming) return;
+    if (!input.trim()) return;
     const text = input;
     setInput('');
     sendMessage(text);
@@ -95,6 +109,20 @@ export default function ChatView() {
           { paddingBottom: Math.max(insets.bottom, 8) },
         ]}
       >
+        <Pressable
+          onPress={toggleTts}
+          style={({ pressed }) => [
+            styles.ttsButton,
+            ttsEnabled && styles.ttsButtonActive,
+            pressed && styles.ttsButtonPressed,
+          ]}
+        >
+          <FontAwesome
+            name={ttsEnabled ? 'volume-up' : 'volume-off'}
+            size={18}
+            color={ttsEnabled ? '#007aff' : (isDark ? '#666' : '#999')}
+          />
+        </Pressable>
         <TextInput
           style={[styles.input, isDark && styles.inputDark]}
           value={input}
@@ -103,17 +131,16 @@ export default function ChatView() {
           placeholderTextColor={isDark ? '#666' : '#999'}
           multiline
           maxLength={10000}
-          editable={!isStreaming}
           onSubmitEditing={handleSend}
           onKeyPress={handleKeyPress}
           blurOnSubmit={false}
         />
         <Pressable
           onPress={handleSend}
-          disabled={!input.trim() || isStreaming}
+          disabled={!input.trim()}
           style={({ pressed }) => [
             styles.sendButton,
-            (!input.trim() || isStreaming) && styles.sendButtonDisabled,
+            !input.trim() && styles.sendButtonDisabled,
             pressed && styles.sendButtonPressed,
           ]}
         >
@@ -192,6 +219,21 @@ const styles = StyleSheet.create({
   inputDark: {
     backgroundColor: '#1c1c1e',
     color: '#fff',
+  },
+  ttsButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+    marginBottom: 2,
+  },
+  ttsButtonActive: {
+    backgroundColor: '#007aff20',
+  },
+  ttsButtonPressed: {
+    opacity: 0.7,
   },
   sendButton: {
     width: 34,
