@@ -21,10 +21,22 @@ chatRouter.post('/', async (req, res) => {
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
 
-      await streamChatResponse(messages, (chunk) => {
-        // Send raw text chunks as SSE data events
+      // Track client disconnect so we don't write to a dead socket
+      let clientDisconnected = false;
+      req.on('close', () => {
+        clientDisconnected = true;
+      });
+
+      const abort = await streamChatResponse(messages, (chunk) => {
+        if (clientDisconnected || res.writableEnded) return;
         res.write(`data: ${JSON.stringify({ type: 'text', text: chunk })}\n\n`);
       });
+
+      // If client left mid-stream, kill the child process
+      if (clientDisconnected) {
+        abort();
+        return;
+      }
 
       res.write('data: [DONE]\n\n');
       res.end();
@@ -38,7 +50,7 @@ chatRouter.post('/', async (req, res) => {
 
     if (!res.headersSent) {
       res.status(500).json({ error: message });
-    } else {
+    } else if (!res.writableEnded) {
       res.end();
     }
   }

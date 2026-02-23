@@ -7,6 +7,14 @@ import { pushRouter } from './routes/push.js';
 import { authMiddleware } from './auth/middleware.js';
 import { attachWebSocket } from './ws/handler.js';
 
+// Global safety nets — prevent uncaught errors from crashing the process
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled rejection:', reason);
+});
+
 const PORT = parseInt(process.env['PORT'] ?? '3001', 10);
 const HOST = process.env['HOST'] ?? '0.0.0.0';
 

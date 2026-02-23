@@ -8,10 +8,14 @@ export interface ChatMessage {
   content: string;
 }
 
+/**
+ * Stream a chat response from claude CLI.
+ * Returns an abort function that kills the child process (for client disconnect).
+ */
 export function streamChatResponse(
   messages: ChatMessage[],
   onData: (chunk: string) => void,
-): Promise<string> {
+): Promise<() => void> {
   return new Promise((resolve, reject) => {
     // Build the prompt from the last user message
     const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user');
@@ -34,13 +38,14 @@ export function streamChatResponse(
       env: { ...process.env },
     });
 
-    let stdout = '';
+    const abort = () => {
+      if (!child.killed) child.kill();
+    };
+
     let stderr = '';
 
     child.stdout.on('data', (chunk: Buffer) => {
-      const text = chunk.toString();
-      stdout += text;
-      onData(text);
+      onData(chunk.toString());
     });
 
     child.stderr.on('data', (chunk: Buffer) => {
@@ -48,8 +53,8 @@ export function streamChatResponse(
     });
 
     child.on('close', (code) => {
-      if (code === 0) {
-        resolve(stdout);
+      if (code === 0 || child.killed) {
+        resolve(abort);
       } else {
         reject(new Error(`Claude exited with code ${code}: ${stderr.slice(-500)}`));
       }
@@ -68,6 +73,7 @@ export async function chatResponse(messages: ChatMessage[]): Promise<string> {
   });
   return result;
 }
+
 
 function buildPrompt(messages: ChatMessage[]): string {
   if (messages.length === 1) {

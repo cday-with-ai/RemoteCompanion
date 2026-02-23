@@ -11,7 +11,15 @@ let wss: WebSocketServer | null = null;
 export function attachWebSocket(server: Server): void {
   wss = new WebSocketServer({ noServer: true });
 
+  wss.on('error', (err) => {
+    console.error('WebSocketServer error:', err.message);
+  });
+
   server.on('upgrade', (req: IncomingMessage, socket, head) => {
+    socket.on('error', (err) => {
+      console.error('Upgrade socket error:', err.message);
+    });
+
     const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
 
     if (url.pathname !== '/ws') {
@@ -47,7 +55,8 @@ export function attachWebSocket(server: Server): void {
       clients.delete(ws);
     });
 
-    ws.on('error', () => {
+    ws.on('error', (err) => {
+      console.error('WebSocket client error:', err.message);
       clients.delete(ws);
     });
   });
